@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Routing Simulator</title>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Added styles to ensure background circles are visible behind content -->
+  <style>
+    .welcome-container { position: relative; overflow: hidden; }
+
+    /* ensure content sits above background */
+    .welcome-content { position: relative; z-index: 2; }
+
+    /* background wrapper behind content */
+    .background-elements { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+
+    .floating-circle {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(40px);
+      opacity: 0.7;
+      transform: translateZ(0);
+      will-change: transform, opacity;
+    }
+
+    .floating-circle.circle-1 {
+      width: 360px; height: 360px;
+      background: radial-gradient(circle at 30% 30%, rgba(99,102,241,0.95), rgba(99,102,241,0.40));
+      top: -80px; left: -80px;
+    }
+
+    .floating-circle.circle-2 {
+      width: 260px; height: 260px;
+      background: radial-gradient(circle at 70% 30%, rgba(236,72,153,0.85), rgba(236,72,153,0.30));
+      top: 18%; right: -60px;
+    }
+
+    .floating-circle.circle-3 {
+      width: 420px; height: 420px;
+      background: radial-gradient(circle at 40% 60%, rgba(16,185,129,0.65), rgba(16,185,129,0.22));
+      bottom: -140px; left: 10%;
+    }
+
+    .floating-circle.circle-4 {
+      width: 200px; height: 200px;
+      background: radial-gradient(circle at 60% 40%, rgba(34,197,94,0.6), rgba(34,197,94,0.18));
+      bottom: 8%; right: 5%;
+    }
+
+    @keyframes float {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-18px); }
+      100% { transform: translateY(0); }
+    }
+
+    .floating-circle { animation: float 8s ease-in-out infinite; }
+
+    /* Added: remove opaque white backgrounds so circles show through */
+    html, body {
+      height: 100%;
+      margin: 0;
+      /* subtle dark gradient page background — adjust as needed */
+      background: linear-gradient(135deg, #071024 0%, #0b1220 60%, #0f172a 100%);
+      color: #e5e7eb;
+    }
+
+    /* force container/content to be transparent if style.css set a white bg */
+    .welcome-container,
+    .welcome-content {
+      background: transparent !important;
+    }
+
+    /* keep background-elements behind everything */
+    .background-elements { z-index: 0; }
+
+    /* ensure main content remains above background */
+    .welcome-content { z-index: 2; position: relative; }
+  </style>
+</head>
+<body>
+  <div class="welcome-container">
+    <div class="welcome-content">
+      <div class="logo">
+        <div class="network-icon">
+          <div class="node node-1"></div>
+          <div class="node node-2"></div>
+          <div class="node node-3"></div>
+          <div class="connection connection-1"></div>
+          <div class="connection connection-2"></div>
+          <div class="connection connection-3"></div>
+        </div>
+      </div>
+      
+      <h1 class="welcome-title">
+        <span class="title-word">Welcome</span>
+        <span class="title-word">to</span>
+        <span class="title-word">Routing</span>
+        <span class="title-word highlight">Simulator</span>
+      </h1>
+      
+      <p class="welcome-subtitle">
+        Experience the power of network routing algorithms with interactive visualizations
+      </p>
+      
+      <div class="features">
+        <div class="feature">
+          <div class="feature-icon">📊</div>
+          <span>Distance Vector</span>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🔗</div>
+          <span>Link State</span>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🎯</div>
+          <span>Interactive</span>
+        </div>
+      </div>
+      
+      <button class="start-button" onclick="window.location.href='choose.html'">
+        <span class="button-text">Start Simulation</span>
+        <div class="button-arrow">→</div>
+      </button>
+      
+      <!-- Quick links removed to keep only Start Simulation button -->
+    </div>
+    
+    <div class="floating-elements">
+      <div class="floating-node floating-1"></div>
+      <div class="floating-node floating-2"></div>
+      <div class="floating-node floating-3"></div>
+      <div class="floating-node floating-4"></div>
+    </div>
+
+    <!-- Added background elements (same as choose.html) -->
+    <div class="background-elements">
+      <div class="floating-circle circle-1"></div>
+      <div class="floating-circle circle-2"></div>
+      <div class="floating-circle circle-3"></div>
+      <div class="floating-circle circle-4"></div>
+    </div>
+  </div>
+  
+  <script>
+    // Add some interactive animations
+    document.addEventListener('DOMContentLoaded', function() {
+      // Animate title words on load
+      const titleWords = document.querySelectorAll('.title-word');
+      titleWords.forEach((word, index) => {
+        word.style.animationDelay = `${index * 0.2}s`;
+        word.classList.add('animate-in');
+      });
+      
+      // Animate features
+      const features = document.querySelectorAll('.feature');
+      features.forEach((feature, index) => {
+        feature.style.animationDelay = `${0.8 + index * 0.2}s`;
+        feature.classList.add('animate-in');
+      });
+      
+      // Button hover effects
+      const startButton = document.querySelector('.start-button');
+      startButton.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-2px) scale(1.05)';
+      });
+      
+      startButton.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(0) scale(1)';
+      });
+    });
+  </script>
+</body>
+</html>

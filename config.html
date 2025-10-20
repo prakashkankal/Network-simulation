@@ -1,0 +1,2714 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configure Network - {{ algo.replace('_', ' ').title() }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+  .config-container { position: relative; overflow: hidden; }
+
+  .config-content { position: relative; z-index: 2; }
+
+  .background-elements {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .floating-circle {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(40px);
+    opacity: 0.7;
+    transform: translateZ(0);
+    will-change: transform, opacity;
+    animation: float 8s ease-in-out infinite;
+  }
+
+  .floating-circle.circle-1 {
+    width: 360px; height: 360px;
+    background: radial-gradient(circle at 30% 30%, rgba(99,102,241,0.95), rgba(99,102,241,0.40));
+    top: -80px; left: -80px;
+  }
+
+  .floating-circle.circle-2 {
+    width: 260px; height: 260px;
+    background: radial-gradient(circle at 70% 30%, rgba(236,72,153,0.85), rgba(236,72,153,0.30));
+    top: 18%; right: -60px;
+  }
+
+  .floating-circle.circle-3 {
+    width: 420px; height: 420px;
+    background: radial-gradient(circle at 40% 60%, rgba(16,185,129,0.65), rgba(16,185,129,0.22));
+    bottom: -140px; left: 10%;
+  }
+
+  .floating-circle.circle-4 {
+    width: 200px; height: 200px;
+    background: radial-gradient(circle at 60% 40%, rgba(34,197,94,0.6), rgba(34,197,94,0.18));
+    bottom: 8%; right: 5%;
+  }
+
+  @keyframes float {
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-18px); }
+    100% { transform: translateY(0); }
+  }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: linear-gradient(135deg, #071024 0%, #0b1220 60%, #0f172a 100%);
+    color: #e5e7eb;
+  }
+
+  .config-container,
+  .config-content {
+    background: transparent !important;
+  }
+
+  .config-content {
+    z-index: 2;
+    position: relative;
+  }
+
+  /* Simulation-mode: two-column layout (80% workspace / 20% tables) */
+  .left-panel { transition: transform 360ms cubic-bezier(.2,.9,.2,1), opacity 320ms ease, width 360ms ease; will-change: transform, opacity, width; }
+  .config-layout.sim-mode .left-panel { transform: translateX(-18px) scale(0.99); opacity: 0; pointer-events: none; width: 0.01px; order: 2; }
+  /* force explicit left-to-right row and keep routing-tables anchored left */
+  .config-layout.sim-mode { display: flex; flex-direction: row; gap: 14px; align-items: flex-start; justify-content: flex-start; position: relative; overflow: visible; }
+  /* left column: routing tables (fixed width, vertical flow) */
+  #route-tables-panel {
+    order: 0;
+    flex: 0 0 var(--sidebar-preferred);
+    width: 20vw;
+    max-width: 20vw;
+    min-width: 200px;
+    height: calc(100vh - 80px);
+    position: absolute;
+    left: 0;
+    top: 60px;
+    z-index: 10;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* Default 2 columns, will be overridden by JS */
+    gap: 6px;
+    align-content: start;
+  }
+  /* right column: topology workspace (flexible 1) */
+  .config-layout.sim-mode .topology-panel {
+    position: absolute;
+    right: 0;
+    top: 60px;
+    width: 70vw;
+    max-width: 70vw;
+    transition: all 320ms ease;
+    margin: 12px 0 12px 0;
+    box-sizing: border-box;
+    order: 1;
+    flex: 1 1 auto;
+    min-width: 300px;
+  }
+  .config-layout.sim-mode #topology-animation {
+    height: calc(80vh - 40px) !important;
+    width: 100% !important;
+    max-width: 100%;
+    box-sizing: border-box;
+    border-radius: 10px;
+    box-shadow: 0 30px 80px rgba(2,6,23,0.6);
+    overflow: auto;
+  }
+
+  /* hide the topology title smoothly in sim-mode */
+  .topology-title { transition: opacity 240ms ease, transform 240ms ease; }
+  .config-layout.sim-mode .topology-title { opacity: 0; transform: translateY(-6px); pointer-events: none; }
+
+  /* Algorithm title for simulation mode */
+  .algorithm-title {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: 700;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    transition: all 0.4s ease;
+  }
+  
+  .config-layout.sim-mode .algorithm-title {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .panel-route-table {
+    background: rgba(6,10,20,0.95);
+    color: #fff;
+    border-radius: 10px;
+    padding: 8px;
+    font-size: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    border: 1px solid rgba(255,255,255,0.04);
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+    transform: none;
+    transition: transform 180ms ease, opacity 180ms ease;
+    opacity: 0.98;
+    overflow: hidden;
+    min-height: fit-content;
+  }
+  .panel-route-table .rt-title { font-weight:700; margin-bottom:6px; display:flex; align-items:center; gap:8px; font-size: 11px; }
+  .panel-route-table table { width:100%; border-collapse: collapse; font-size: 11px; color: #fff; }
+  .panel-route-table th, .panel-route-table td { padding:3px 4px; text-align:left; }
+  .panel-route-table thead th { font-size: 10px; opacity: 0.9; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.03); }
+
+  /* Router color definitions */
+  .router-color-A { background: linear-gradient(135deg, #ff6b6b, #ee5a52); }
+  .router-color-B { background: linear-gradient(135deg, #4ecdc4, #44a08d); }
+  .router-color-C { background: linear-gradient(135deg, #45b7d1, #96c93d); }
+  .router-color-D { background: linear-gradient(135deg, #f9ca24, #f0932b); }
+  .router-color-E { background: linear-gradient(135deg, #6c5ce7, #a29bfe); }
+  .router-color-F { background: linear-gradient(135deg, #fd79a8, #fdcb6e); }
+  .router-color-G { background: linear-gradient(135deg, #00b894, #00cec9); }
+  .router-color-H { background: linear-gradient(135deg, #e17055, #d63031); }
+  .router-color-I { background: linear-gradient(135deg, #74b9ff, #0984e3); }
+  .router-color-J { background: linear-gradient(135deg, #a29bfe, #6c5ce7); }
+
+  /* Router dot styling */
+  .router-dot {
+    background: inherit !important;
+    opacity: 0.8;
+  }
+
+  /* Animation and highlight styles */
+  .highlight-update {
+    background: linear-gradient(90deg, rgba(255,215,0,0.3), rgba(255,165,0,0.2)) !important;
+    animation: highlightPulse 1s ease-in-out;
+  }
+  
+  .highlight-router {
+    animation: routerPulse 1s ease-in-out;
+    box-shadow: 0 0 20px rgba(59,130,246,0.6);
+  }
+  
+  .message-animation {
+    position: absolute;
+    z-index: 50;
+    pointer-events: none;
+  }
+  
+  .message-bubble {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(59,130,246,0.4);
+    border: 2px solid rgba(255,255,255,0.2);
+    animation: messageFloat 2s ease-in-out;
+  }
+  
+  .message-text {
+    white-space: nowrap;
+  }
+  
+  @keyframes highlightPulse {
+    0% { background: rgba(255,215,0,0.1); }
+    50% { background: rgba(255,215,0,0.4); }
+    100% { background: rgba(255,215,0,0.1); }
+  }
+  
+  @keyframes routerPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+  }
+  
+  @keyframes messageFloat {
+    0% { transform: translateY(0) scale(0.8); opacity: 0; }
+    20% { transform: translateY(-10px) scale(1); opacity: 1; }
+    80% { transform: translateY(-10px) scale(1); opacity: 1; }
+    100% { transform: translateY(0) scale(0.8); opacity: 0; }
+  }
+  
+  /* Routing table update animations */
+  .routing-update-animation {
+    position: absolute;
+    z-index: 45;
+    pointer-events: none;
+  }
+  
+  .update-bubble {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 11px;
+    font-weight: 600;
+    box-shadow: 0 6px 20px rgba(16,185,129,0.4);
+    border: 2px solid rgba(255,255,255,0.2);
+    animation: updateFloat 1.8s ease-in-out;
+    min-width: 120px;
+    text-align: center;
+  }
+  
+  .update-icon {
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  
+  .update-text {
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  
+  .update-details {
+    font-size: 10px;
+    opacity: 0.9;
+  }
+  
+  /* Path highlighting animations */
+  .path-highlight {
+    animation: pathPulse 2s ease-in-out;
+    box-shadow: 0 0 25px rgba(34,197,94,0.8);
+  }
+  
+  .path-connection {
+    background: linear-gradient(90deg, #22c55e, #16a34a) !important;
+    box-shadow: 0 0 15px rgba(34,197,94,0.6);
+    animation: connectionPulse 2s ease-in-out;
+  }
+  
+  /* Hop information animations */
+  .hop-info {
+    position: absolute;
+    z-index: 55;
+    pointer-events: none;
+  }
+  
+  .hop-bubble {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(139,92,246,0.4);
+    border: 2px solid rgba(255,255,255,0.2);
+    animation: hopFloat 1.5s ease-in-out;
+    text-align: center;
+    min-width: 80px;
+  }
+  
+  .hop-text {
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  
+  .hop-route {
+    font-size: 10px;
+    opacity: 0.9;
+  }
+  
+  /* Sending message animations */
+  .sending-message {
+    position: absolute;
+    z-index: 50;
+    pointer-events: none;
+  }
+  
+  .sending-bubble {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 6px 20px rgba(245,158,11,0.4);
+    border: 2px solid rgba(255,255,255,0.2);
+    animation: sendingFloat 2s ease-in-out;
+    text-align: center;
+    min-width: 100px;
+  }
+  
+  .sending-icon {
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+  
+  .sending-text {
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  
+  .sending-details {
+    font-size: 10px;
+    opacity: 0.9;
+  }
+  
+  /* Update notification animations */
+  .update-notification {
+    position: absolute;
+    z-index: 60;
+    pointer-events: none;
+  }
+  
+  .notification-bubble {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    box-shadow: 0 6px 20px rgba(251,191,36,0.4);
+    border: 2px solid rgba(255,255,255,0.2);
+    animation: notificationFloat 2.5s ease-in-out;
+    text-align: center;
+    min-width: 120px;
+  }
+  
+  .notification-icon {
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+  
+  .notification-text {
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  
+  .notification-details {
+    font-size: 9px;
+    opacity: 0.9;
+  }
+  
+  @keyframes updateFloat {
+    0% { transform: translateY(0) scale(0.7); opacity: 0; }
+    15% { transform: translateY(-8px) scale(1); opacity: 1; }
+    85% { transform: translateY(-8px) scale(1); opacity: 1; }
+    100% { transform: translateY(0) scale(0.7); opacity: 0; }
+  }
+  
+  @keyframes pathPulse {
+    0% { transform: scale(1); box-shadow: 0 0 25px rgba(34,197,94,0.8); }
+    50% { transform: scale(1.05); box-shadow: 0 0 35px rgba(34,197,94,1); }
+    100% { transform: scale(1); box-shadow: 0 0 25px rgba(34,197,94,0.8); }
+  }
+  
+  @keyframes connectionPulse {
+    0% { box-shadow: 0 0 15px rgba(34,197,94,0.6); }
+    50% { box-shadow: 0 0 25px rgba(34,197,94,0.9); }
+    100% { box-shadow: 0 0 15px rgba(34,197,94,0.6); }
+  }
+  
+  @keyframes hopFloat {
+    0% { transform: translateY(0) scale(0.8); opacity: 0; }
+    20% { transform: translateY(-5px) scale(1); opacity: 1; }
+    80% { transform: translateY(-5px) scale(1); opacity: 1; }
+    100% { transform: translateY(0) scale(0.8); opacity: 0; }
+  }
+  
+  @keyframes sendingFloat {
+    0% { transform: translateY(0) scale(0.8); opacity: 0; }
+    20% { transform: translateY(-12px) scale(1); opacity: 1; }
+    80% { transform: translateY(-12px) scale(1); opacity: 1; }
+    100% { transform: translateY(0) scale(0.8); opacity: 0; }
+  }
+  
+  @keyframes notificationFloat {
+    0% { transform: translateY(0) scale(0.7); opacity: 0; }
+    20% { transform: translateY(-15px) scale(1.1); opacity: 1; }
+    80% { transform: translateY(-15px) scale(1.1); opacity: 1; }
+    100% { transform: translateY(0) scale(0.7); opacity: 0; }
+  }
+
+  /* Bottom controls bar */
+  #sim-controls {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 20px;
+    z-index: 60;
+    background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(8,12,20,0.9));
+    padding: 12px 20px;
+    border-radius: 16px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 8px 32px rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(20px);
+    min-width: 400px;
+    justify-content: center;
+  }
+  
+  #sim-controls button {
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.15);
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 80px;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  #sim-controls button:hover {
+    background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
+    border-color: rgba(255,255,255,0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+  }
+  
+  #sim-controls button:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+  
+  #sim-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  #sim-controls button:disabled:hover {
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+    transform: none;
+    box-shadow: none;
+  }
+  
+  #sim-controls label {
+    color: #e2e8f0;
+    font-size: 14px;
+    font-weight: 500;
+    margin-right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  #sim-controls input[type="range"] {
+    background: transparent;
+    color: #fff;
+    border: none;
+    height: 40px;
+    padding: 0;
+    cursor: pointer;
+    width: 120px;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  
+  #sim-controls input[type="range"]::-webkit-slider-track {
+    background: rgba(255,255,255,0.1);
+    height: 6px;
+    border-radius: 3px;
+  }
+  
+  #sim-controls input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+    transition: all 0.3s ease;
+  }
+  
+  #sim-controls input[type="range"]::-webkit-slider-thumb:hover {
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(59,130,246,0.6);
+  }
+  
+  #sim-controls input[type="range"]::-moz-range-track {
+    background: rgba(255,255,255,0.1);
+    height: 6px;
+    border-radius: 3px;
+    border: none;
+  }
+  
+  #sim-controls input[type="range"]::-moz-range-thumb {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+    transition: all 0.3s ease;
+  }
+  
+  #sim-controls input[type="range"]::-moz-range-thumb:hover {
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(59,130,246,0.6);
+  }
+
+  /* position showForm button bottom-left in sim-mode */
+  #showFormBtn {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    z-index: 80;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(2,6,23,0.6);
+    backdrop-filter: blur(6px);
+    font-weight: 600;
+  }
+  .config-layout.sim-mode #showFormBtn { display: inline-flex; }
+
+  /* Responsive sidebar / workspace sizing */
+  :root {
+    --sidebar-min: 180px;
+    --sidebar-preferred: 240px;
+    --sidebar-max: 360px;
+  }
+  /* tweak sidebar size at breakpoints */
+  @media (max-width: 1200px) {
+    :root { --sidebar-preferred: 200px; }
+  }
+  @media (min-width: 1600px) {
+    :root { --sidebar-preferred: 320px; }
+  }
+
+  /* responsive behaviour */
+  @media (max-width: 980px) {
+    /* stack on small screen */
+    .config-layout.sim-mode { flex-direction: column; }
+    .config-layout.sim-mode .topology-panel { 
+      width: 100%; 
+      max-width: 100%; 
+    }
+    #route-tables-panel { width: 100%; order: 2; height: auto; position: relative; padding-bottom: 56px; }
+    .panel-route-table { position: relative; width: 100%; left: 0; margin: 6px 0; }
+    .config-layout.sim-mode #topology-animation { 
+      height: calc(72vh - 40px); 
+      width: 95vw; 
+      max-width: 95vw; 
+      margin: 8px auto; 
+    }
+    #sim-controls { width: calc(100% - 28px); left: 14px; transform: none; }
+  }
+</style>
+</head>
+
+<body class="config-page" data-algo="{{ algo }}">
+  <!-- NEW single-background two-column layout -->
+  <div class="config-container config-layout">
+    <!-- Background Circles -->
+    <div class="background-elements">
+      <div class="floating-circle circle-1"></div>
+      <div class="floating-circle circle-2"></div>
+      <div class="floating-circle circle-3"></div>
+      <div class="floating-circle circle-4"></div>
+    </div>
+
+    <div class="left-panel">
+      <div class="config-header">
+        <h3 class="config-title text-white">{{ algo.replace('_', ' ').title() }} Configuration</h3>
+        <p class="config-subtitle text-gray-300">Set up your network parameters and run the simulation</p>
+      </div>
+
+      <!-- form sits in left panel now (was previously fixed) -->
+      <form method="post" class="config-form" id="networkForm">
+        <div class="form-section">
+          <h3 class="section-title">Network Setup</h3>
+          
+          <div class="form-group">
+            <label for="num_routers" class="form-label">
+              <span class="label-icon">🔢</span>
+              Number of Routers
+            </label>
+            <div class="input-wrapper">
+              <input type="number" id="num_routers" name="num_routers" value="4" min="1" max="10" required class="form-input">
+              <div class="input-border"></div>
+            </div>
+            <small class="form-help">Choose between 1-10 routers (A-J)</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="topology" class="form-label">
+              <span class="label-icon">🧩</span>
+              Type of Topology
+            </label>
+            <div class="select-wrapper">
+              <select id="topology" name="topology" class="form-select">
+                <option value="ring">Ring</option>
+                <option value="star">Star</option>
+                <option value="mesh">Mesh</option>
+                <option value="line">Line</option>
+                <option value="random" selected>Random</option>
+              </select>
+              <div class="select-arrow">▼</div>
+            </div>
+            <small class="form-help">Choose a preset topology to auto-generate links</small>
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <h3 class="section-title">Message Configuration</h3>
+          
+          <div class="form-group">
+            <label for="message" class="form-label">
+              <span class="label-icon">💬</span>
+              Message to Send
+            </label>
+            <div class="input-wrapper">
+              <input type="text" id="message" name="message" value="Hello" placeholder="Enter your message here..." required class="form-input">
+              <div class="input-border"></div>
+            </div>
+            <small class="form-help">The message that will be transmitted through the network</small>
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <h3 class="section-title">Routing Parameters</h3>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="source" class="form-label">
+                <span class="label-icon">🚀</span>
+                Source Router
+              </label>
+              <div class="select-wrapper">
+                <select id="source" name="source" required class="form-select">
+                  <option value="A">Router A</option>
+                  <option value="B">Router B</option>
+                  <option value="C">Router C</option>
+                  <option value="D" selected>Router D</option>
+                  <option value="E">Router E</option>
+                  <option value="F">Router F</option>
+                </select>
+                <div class="select-arrow">▼</div>
+              </div>
+              <small class="form-help">Starting point of the message</small>
+            </div>
+            
+            <div class="form-group">
+              <label for="dest" class="form-label">
+                <span class="label-icon">🎯</span>
+                Destination Router
+              </label>
+              <div class="select-wrapper">
+                <select id="dest" name="dest" required class="form-select">
+                  <option value="A">Router A</option>
+                  <option value="B">Router B</option>
+                  <option value="C">Router C</option>
+                  <option value="D" selected>Router D</option>
+                  <option value="E">Router E</option>
+                  <option value="F">Router F</option>
+                </select>
+                <div class="select-arrow">▼</div>
+              </div>
+              <small class="form-help">Target destination for the message</small>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <!-- ensure submit-button class exists so JS ripple code finds it -->
+          <button type="submit" class="animated-button submit-button w-48 h-14">
+            <svg class="arr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"/></svg>
+            <span class="text">Run Simulation</span>
+            <span class="circle"></span>
+            <svg class="arr-1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"/></svg>
+          </button>
+          <a href="/choose" class="bg-white/10 backdrop-blur-sm text-center w-48 h-14 rounded-2xl relative text-white text-xl font-semibold group flex items-center justify-center shadow-lg hover:shadow-indigo-500/50 transition-all duration-500 border border-white/20">
+            <div class="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl h-12 w-1/4 flex items-center justify-center absolute left-1 top-[4px] group-hover:w-[184px] z-10 duration-500">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" height="25px" width="25px">
+                <path d="M224 480h640a32 32 0 1 1 0 64H224a32 32 0 0 1 0-64z" fill="#ffffff"></path>
+                <path d="m237.248 512 265.408 265.344a32 32 0 0 1-45.312 45.312l-288-288a32 32 0 0 1 0-45.312l288-288a32 32 0 1 1 45.312 45.312L237.248 512z" fill="#ffffff"></path>
+              </svg>
+            </div>
+            <p class="translate-x-2 z-20 transition-opacity duration-500 group-hover:opacity-0 go-back-text">Go Back</p>
+          </a>
+        </div>
+      </form>
+    </div>
+
+    <!-- Right: topology preview -->
+    <div class="topology-panel">
+      <div class="topology-title mb-4 text-xl font-bold text-center text-white">Network Topology Preview</div>
+      <div class="algorithm-title" id="algorithmTitle">Routing Algorithm</div>
+      <div id="topology-animation" class="topology-animation rounded-lg"></div>
+    </div>
+
+    <!-- Show configuration button (appears in sim-mode bottom-left) -->
+    <button id="showFormBtn" aria-label="Show configuration" title="Show configuration">⚙ Show</button>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // read algo from query param and set dataset so page JS uses correct algorithm
+      const params = new URLSearchParams(window.location.search);
+      const qAlgo = params.get('algo');
+      if (qAlgo) {
+        document.body.dataset.algo = qAlgo.toLowerCase();
+      }
+      // update document title and visible header if present
+      const pageAlgo = (document.body && document.body.dataset && document.body.dataset.algo) ? document.body.dataset.algo : 'link_state';
+      const pretty = pageAlgo.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase());
+      document.title = `Configure Network - ${pretty}`;
+      const headerEl = document.querySelector('.config-title');
+      if (headerEl) headerEl.textContent = `${pretty} Configuration`;
+      
+       const form = document.getElementById('networkForm');
+       const numRoutersInput = document.getElementById('num_routers');
+       const sourceSelect = document.getElementById('source');
+       const destSelect = document.getElementById('dest');
+       const topologySelect = document.getElementById('topology');
+       const topologyAnimation = document.getElementById('topology-animation');
+      
+      // Router positioning functions for different topologies
+      const topologyLayouts = {
+        ring: function(numRouters, centerX, centerY, radius) {
+          return Array.from({length: numRouters}, (_, i) => {
+            const angle = (i * 2 * Math.PI) / numRouters - Math.PI / 2;
+            return {
+              x: centerX + radius * Math.cos(angle),
+              y: centerY + radius * Math.sin(angle),
+              delay: i * 100 // Animation delay
+            };
+          });
+        },
+        
+        star: function(numRouters, centerX, centerY, radius) {
+          const positions = [{
+            x: centerX, 
+            y: centerY,
+            delay: 0
+          }]; // Center router
+          for (let i = 1; i < numRouters; i++) {
+            const angle = ((i - 1) * 2 * Math.PI) / (numRouters - 1) - Math.PI / 2;
+            positions.push({
+              x: centerX + radius * Math.cos(angle),
+              y: centerY + radius * Math.sin(angle),
+              delay: i * 100
+            });
+          }
+          return positions;
+        },
+        
+        line: function(numRouters, centerX, centerY, spacing) {
+          return Array.from({length: numRouters}, (_, i) => ({
+            x: centerX + (i - (numRouters - 1) / 2) * spacing,
+            y: centerY,
+            delay: i * 100
+          }));
+        },
+        
+        mesh: function(numRouters, centerX, centerY, radius) {
+          return Array.from({length: numRouters}, (_, i) => {
+            const angle = (i * 2 * Math.PI) / numRouters - Math.PI / 2;
+            return {
+              x: centerX + radius * Math.cos(angle),
+              y: centerY + radius * Math.sin(angle),
+              delay: i * 100
+            };
+          });
+        },
+        
+        random: function(numRouters, centerX, centerY, radius) {
+          const positions = [];
+          for (let i = 0; i < numRouters; i++) {
+            const angle = Math.random() * 2 * Math.PI;
+            const r = Math.random() * radius;
+            positions.push({
+              x: centerX + r * Math.cos(angle),
+              y: centerY + r * Math.sin(angle),
+              delay: i * 100
+            });
+          }
+          return positions;
+        }
+      };
+
+      // Create connections between routers based on topology
+      function createConnections(topology, positions) {
+        const connections = [];
+        switch(topology) {
+          case 'ring':
+            for (let i = 0; i < positions.length; i++) {
+              connections.push({
+                from: i,
+                to: (i + 1) % positions.length,
+                delay: i * 100
+              });
+            }
+            break;
+          case 'star':
+            for (let i = 1; i < positions.length; i++) {
+              connections.push({
+                from: 0,
+                to: i,
+                delay: i * 100
+              });
+            }
+            break;
+          case 'line':
+            for (let i = 0; i < positions.length - 1; i++) {
+              connections.push({
+                from: i,
+                to: i + 1,
+                delay: i * 100
+              });
+            }
+            break;
+          case 'mesh':
+            let delay = 0;
+            for (let i = 0; i < positions.length; i++) {
+              for (let j = i + 1; j < positions.length; j++) {
+                connections.push({
+                  from: i,
+                  to: j,
+                  delay: delay
+                });
+                delay += 50;
+              }
+            }
+            break;
+          case 'random':
+            const numConnections = Math.max(positions.length - 1, 
+              Math.floor(Math.random() * (positions.length * (positions.length - 1) / 4)));
+            let connDelay = 0;
+            while (connections.length < numConnections) {
+              const i = Math.floor(Math.random() * positions.length);
+              const j = Math.floor(Math.random() * positions.length);
+              if (i !== j && !connections.some(c => (c.from === i && c.to === j) || (c.from === j && c.to === i))) {
+                connections.push({
+                  from: i,
+                  to: j,
+                  delay: connDelay
+                });
+                connDelay += 100;
+              }
+            }
+            break;
+        }
+        return connections;
+      }
+
+      // Update topology visualization
+      function updateTopology() {
+        const numRouters = parseInt(numRoutersInput.value) || 4;
+        const topology = topologySelect.value;
+        const container = topologyAnimation;
+        const rect = container.getBoundingClientRect();
+        
+        // Clear previous visualization with fade-out effect
+        const oldElements = container.children;
+        Array.from(oldElements).forEach(el => {
+          el.style.opacity = '0';
+          el.style.transform += ' scale(0.8)';
+        });
+        setTimeout(() => {
+          container.innerHTML = '';
+          createNewTopology();
+        }, 300);
+
+        function createNewTopology() {
+          // Calculate center and radius
+          const centerX = rect.width / 2;
+          const centerY = rect.height / 2;
+          const radius = Math.min(rect.width, rect.height) * 0.35;
+          const spacing = radius * 0.5;
+          
+          // Get router positions based on topology
+          const positions = topologyLayouts[topology](numRouters, centerX, centerY, 
+            topology === 'line' ? spacing : radius);
+          
+          // Create connection lines with delayed animation
+          const connections = createConnections(topology, positions);
+          connections.forEach(conn => {
+            const line = document.createElement('div');
+            line.className = 'connection-line';
+            const dx = positions[conn.to].x - positions[conn.from].x;
+            const dy = positions[conn.to].y - positions[conn.from].y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            
+            line.style.width = `${length}px`;
+            line.style.left = `${positions[conn.from].x}px`;
+            line.style.top = `${positions[conn.from].y}px`;
+            line.style.transform = `rotate(${angle}deg)`;
+            line.style.animationDelay = `${conn.delay}ms`;
+            
+            container.appendChild(line);
+          });
+          
+          // Create router nodes with delayed animation
+          positions.forEach((pos, i) => {
+            const router = document.createElement('div');
+            router.className = 'router-node';
+            const letter = String.fromCharCode(65 + i);
+            const colorClass = `router-color-${letter}`;
+
+            // Define colors for each router
+            const routerColors = {
+              'A': { start: '#ff6b6b', end: '#ee5a52' },
+              'B': { start: '#4ecdc4', end: '#44a08d' },
+              'C': { start: '#45b7d1', end: '#96c93d' },
+              'D': { start: '#f9ca24', end: '#f0932b' },
+              'E': { start: '#6c5ce7', end: '#a29bfe' },
+              'F': { start: '#fd79a8', end: '#fdcb6e' },
+              'G': { start: '#00b894', end: '#00cec9' },
+              'H': { start: '#e17055', end: '#d63031' },
+              'I': { start: '#74b9ff', end: '#0984e3' },
+              'J': { start: '#a29bfe', end: '#6c5ce7' }
+            };
+            
+            const colors = routerColors[letter] || { start: '#7c83ff', end: '#5a67d8' };
+
+            // Use an inline SVG for a richer router appearance (gradient, stroke, label)
+            router.innerHTML = `
+              <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                <defs>
+                  <linearGradient id="routerGrad${i}" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="${colors.start}" stop-opacity="0.9"/>
+                    <stop offset="1" stop-color="${colors.end}" stop-opacity="0.8"/>
+                  </linearGradient>
+                  <filter id="routerShadow${i}" x="-50%" y="-50%" width="200%" height="200%">
+                    <feDropShadow dx="0" dy="6" stdDeviation="14" flood-color="#0b1220" flood-opacity="0.15"/>
+                  </filter>
+                </defs>
+                <g filter="url(#routerShadow${i})">
+                  <circle cx="50" cy="50" r="44" fill="url(#routerGrad${i})" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+                </g>
+                <text x="50" y="58" font-size="42" font-family="Segoe UI, Tahoma, Geneva, Verdana, sans-serif" font-weight="700" fill="#ffffff" text-anchor="middle" alignment-baseline="middle">${letter}</text>
+              </svg>
+            `;
+            
+            // Add color class and data attribute to the router element
+            router.classList.add(colorClass);
+            router.setAttribute('data-router', letter);
+
+            router.style.left = `${pos.x - 30}px`;
+            router.style.top = `${pos.y - 30}px`;
+            router.style.animationDelay = `${pos.delay}ms`;
+
+            // Add data flow animation between connected nodes
+            router.addEventListener('mouseenter', () => {
+              const connectedLines = connections.filter(c => 
+                c.from === i || c.to === i
+              ).map(c => container.children[c.from]);
+              
+              connectedLines.forEach(line => {
+                line.style.animation = 'none';
+                line.offsetHeight; // Trigger reflow
+                line.style.animation = null;
+              });
+            });
+            
+            container.appendChild(router);
+          });
+        }
+      }
+      
+      // Update router options based on number of routers
+      function updateRouterOptions() {
+        const numRouters = parseInt(numRoutersInput.value) || 4;
+        const routers = Array.from({length: numRouters}, (_, i) => String.fromCharCode(65 + i));
+        
+        // Update source options
+        sourceSelect.innerHTML = routers.map(router => 
+          `<option value="${router}">Router ${router}</option>`
+        ).join('');
+        
+        // Update destination options
+        destSelect.innerHTML = routers.map(router => 
+          `<option value="${router}">Router ${router}</option>`
+        ).join('');
+        
+        // Set default values
+        if (routers.length >= 4) {
+          sourceSelect.value = 'A';
+          destSelect.value = routers[routers.length - 1];
+        }
+        
+        // Update topology visualization
+        updateTopology();
+      }
+      
+      // Update when inputs change
+      numRoutersInput.addEventListener('input', updateRouterOptions);
+      topologySelect.addEventListener('change', updateTopology);
+      
+      // Initialize router options and topology
+      updateRouterOptions();
+      
+      // Form validation
+      form.addEventListener('submit', function(e) {
+        const source = sourceSelect.value;
+        const dest = destSelect.value;
+        
+        if (source === dest) {
+          e.preventDefault();
+          alert('Source and destination routers must be different!');
+          return false;
+        }
+      });
+      
+      // --- NEW: client-side algorithms and submit handler ---
+      function buildTopology(numRouters, topologyType) {
+        const nodes = Array.from({length: numRouters}, (_, i) => String.fromCharCode(65 + i));
+        const positions = topologyLayouts[topologyType](numRouters, 0, 0, 1); // positions only for layout later
+        const connections = createConnections(topologyType, positions);
+
+        // Create weighted links (symmetric) with weight 1..9
+        const links = connections.map(c => {
+          return { u: nodes[c.from], v: nodes[c.to], w: Math.floor(Math.random() * 9) + 1 };
+        });
+
+        return { nodes, links };
+      }
+
+      // Dijkstra (link-state) - returns routing table, paths, distances
+      function dijkstraJS(nodes, links, source) {
+        const adj = {};
+        nodes.forEach(n => adj[n] = {});
+        links.forEach(l => {
+          adj[l.u][l.v] = Math.min(adj[l.u][l.v] || Infinity, l.w);
+          adj[l.v][l.u] = Math.min(adj[l.v][l.u] || Infinity, l.w);
+        });
+
+        const dist = {}; const prev = {};
+        nodes.forEach(n => { dist[n] = Infinity; prev[n] = null; });
+        dist[source] = 0;
+        const pq = [[0, source]];
+        const visited = new Set();
+
+        while (pq.length) {
+          pq.sort((a,b)=>a[0]-b[0]);
+          const [d,u] = pq.shift();
+          if (visited.has(u)) continue;
+          visited.add(u);
+          for (const v in adj[u]) {
+            const w = adj[u][v];
+            if (dist[u] + w < dist[v]) {
+              dist[v] = dist[u] + w;
+              prev[v] = u;
+              pq.push([dist[v], v]);
+            }
+          }
+        }
+
+        const paths = {};
+        const routing = {};
+        nodes.forEach(dest => {
+          if (dist[dest] === Infinity) {
+            paths[dest] = null;
+            routing[dest] = { next_hop: null, cost: null };
+            return;
+          }
+          const path = [];
+          let cur = dest;
+          while (cur !== null) { path.push(cur); cur = prev[cur]; }
+          path.reverse();
+          paths[dest] = path;
+          const next_hop = dest === source ? source : (path.length > 1 ? path[1] : null);
+          routing[dest] = { next_hop, cost: dist[dest] };
+        });
+
+        return { algorithm: 'link_state', source, routing, paths, distances: dist };
+      }
+
+      // Bellman-Ford / Distance Vector simulation (JS)
+      function distanceVectorJS(nodes, links, source) {
+        const neighbors = {};
+        nodes.forEach(n => { neighbors[n] = {}; });
+        links.forEach(l => {
+          neighbors[l.u][l.v] = Math.min(neighbors[l.u][l.v] || Infinity, l.w);
+          neighbors[l.v][l.u] = Math.min(neighbors[l.v][l.u] || Infinity, l.w);
+        });
+
+        // Initialize distance vectors and next_hop
+        const dv = {};
+        const next = {};
+        nodes.forEach(n => {
+          dv[n] = {};
+          next[n] = {};
+          nodes.forEach(dest => {
+            dv[n][dest] = dest === n ? 0 : Infinity;
+            next[n][dest] = dest === n ? n : null;
+          });
+        });
+        // direct neighbors
+        links.forEach(l => {
+          dv[l.u][l.v] = l.w; next[l.u][l.v] = l.v;
+          dv[l.v][l.u] = l.w; next[l.v][l.u] = l.u;
+        });
+
+        const steps = [];
+        for (let iter = 0; iter < nodes.length - 1; iter++) {
+          let changed = false;
+          const updates = [];
+          nodes.forEach(node => {
+            for (const nb in neighbors[node]) {
+              const edge_w = neighbors[node][nb];
+              nodes.forEach(dest => {
+                const candidate = edge_w + (dv[nb][dest]===Infinity?Infinity:dv[nb][dest]);
+                if (candidate < dv[node][dest]) {
+                  const old = dv[node][dest] === Infinity ? '∞' : dv[node][dest];
+                  dv[node][dest] = candidate;
+                  next[node][dest] = nb;
+                  changed = true;
+                  updates.push({ node, destination: dest, new_cost: candidate, via: nb, old_cost: old });
+                }
+              });
+            }
+          });
+          steps.push({ iteration: iter, updates });
+          if (!changed) break;
+        }
+
+        // Build routing for source
+        const routing = {};
+        nodes.forEach(dest => {
+          routing[dest] = { next_hop: next[source][dest], cost: dv[source][dest] === Infinity ? null : dv[source][dest] };
+        });
+
+        // derive paths from next_hop table
+        function pathFromSource(dest) {
+          if (dest === source) return [source];
+          const path = [source];
+          let cur = source;
+          const visited = new Set();
+          while (cur !== dest && cur !== null && !visited.has(cur)) {
+            visited.add(cur);
+            const nh = next[cur][dest];
+            if (!nh || nh === cur) return null;
+            path.push(nh);
+            cur = nh;
+          }
+          return cur === dest ? path : null;
+        }
+
+        const paths = {};
+        nodes.forEach(d => paths[d] = pathFromSource(d));
+
+        return { algorithm: 'distance_vector', source, routing, steps, distance_vectors: dv, paths };
+      }
+
+      // New submit handler — computes simulation client-side and navigates to /simulate
+       const topForm = document.getElementById('networkForm');
+       topForm.addEventListener('submit', async function(ev) {
+         ev.preventDefault();
+         const numRouters = parseInt(numRoutersInput.value) || 4;
+         const topology = topologySelect.value;
+         const messageText = document.getElementById('message').value || '';
+         const source = document.getElementById('source').value;
+         const dest = document.getElementById('dest').value;
+
+         if (source === dest) { alert('Source and destination must differ'); return; }
+
+         const topo = buildTopology(numRouters, topology);
+
+         // choose algorithm based on page data attribute (fallback to link_state)
+         const pageAlgo = (document.body && document.body.dataset && document.body.dataset.algo) ? document.body.dataset.algo.toLowerCase() : '';
+         let result;
+         if (pageAlgo.includes('distance') || pageAlgo.includes('vector') || pageAlgo.includes('bellman')) {
+           result = distanceVectorJS(topo.nodes, topo.links, source);
+         } else {
+           result = dijkstraJS(topo.nodes, topo.links, source);
+         }
+
+         // Prepare payload
+         const payload = { topology: topo, message: messageText, source, dest, result };
+
+         // Provide immediate UI feedback by disabling the submit button and changing its label.
+         const runBtn = topForm.querySelector('.submit-button') || topForm.querySelector('button[type="submit"]');
+         if (runBtn) {
+           runBtn.disabled = true;
+           runBtn.dataset.orig = runBtn.innerHTML;
+           runBtn.innerHTML = 'Preparing...';
+         }
+
+         // Try server-side generator endpoint (best-effort), but DO NOT redirect.
+         try {
+           const resp = await fetch('/generate_simulation', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(payload)
+           });
+           if (resp.ok) {
+             const data = await resp.json();
+             if (data && data.file) {
+               // store server file reference for later retrieval (no redirect)
+               payload.generatedFile = data.file;
+               console.info('Server generated file available:', data.file);
+             }
+           }
+         } catch (e) {
+           console.warn('Server generator not available (continuing client-side):', e);
+         }
+
+         // Store the computed simulation in sessionStorage so simulate.html (if opened later) can read it.
+         try {
+           sessionStorage.setItem('routing_simulation', JSON.stringify(payload));
+         } catch (e) {
+           console.warn('Could not store simulation payload in sessionStorage', e);
+         }
+
+         // Enter in-page simulation UI (hide form, enlarge preview, create tables & controls)
+         const nodeIds = topo.nodes || Array.from({length: numRouters}, (_, i) => String.fromCharCode(65 + i));
+         if (window.simUI && typeof window.simUI.enterSimMode === 'function') {
+           window.simUI.enterSimMode(nodeIds);
+           
+           // Initialize simulation after UI is ready
+           setTimeout(() => {
+             if (window.simUI && typeof window.simUI.initializeSimulation === 'function') {
+               window.simUI.initializeSimulation(pageAlgo, topo, messageText, source, dest);
+             }
+           }, 500);
+         } else if (typeof enterSimMode === 'function') {
+           try { 
+             enterSimMode(nodeIds); 
+             
+             // Initialize simulation after UI is ready
+             setTimeout(() => {
+               if (window.simUI && typeof window.simUI.initializeSimulation === 'function') {
+                 window.simUI.initializeSimulation(pageAlgo, topo, messageText, source, dest);
+               }
+             }, 500);
+           } catch(e) { /* ignore */ }
+         }
+
+         // Restore button state (allow re-running or changing options)
+         if (runBtn) {
+           runBtn.disabled = false;
+           runBtn.innerHTML = runBtn.dataset.orig || 'Run Simulation';
+         }
+
+         // keep on the same page — no navigation
+      });
+     });
+   </script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Expose topology state so tables can be positioned
+  window._topologyState = { nodes: [], positions: [], connections: [] };
+  
+  // Simulation state management
+  window._simulationState = {
+    currentStep: 0,
+    totalSteps: 0,
+    algorithm: null,
+    topology: null,
+    message: null,
+    source: null,
+    dest: null,
+    steps: [],
+    messagePath: [],
+    currentMessagePosition: 0,
+    isRunning: false,
+    speed: 1.0
+  };
+
+  // Helper: create route tables container and per-router tables
+  function createRoutingTables(nodeIds) {
+    // ensure single panel (as left column)
+    let panel = document.getElementById('route-tables-panel');
+    const layout = document.querySelector('.config-layout');
+    const topologyPanel = layout ? layout.querySelector('.topology-panel') : null;
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'route-tables-panel';
+      // insert BEFORE topology-panel so it naturally appears on the left
+      if (layout && topologyPanel) layout.insertBefore(panel, topologyPanel);
+      else if (layout) layout.appendChild(panel);
+      else document.querySelector('.config-container')?.appendChild(panel);
+    } else {
+      panel.innerHTML = '';
+    }
+
+    // Calculate optimal number of columns based on number of routers
+    const numRouters = nodeIds.length;
+    let columns;
+    if (numRouters <= 4) {
+      columns = 2;
+    } else if (numRouters <= 8) {
+      columns = 3;
+    } else if (numRouters <= 12) {
+      columns = 4;
+    } else {
+      columns = 5; // Maximum 5 columns for very large networks
+    }
+
+    // Apply dynamic grid columns
+    panel.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+    
+    // Adjust panel width based on number of columns for better fit
+    if (columns >= 4) {
+      panel.style.width = '30vw';
+      panel.style.maxWidth = '30vw';
+    } else if (columns >= 3) {
+      panel.style.width = '25vw';
+      panel.style.maxWidth = '25vw';
+    } else {
+      panel.style.width = '20vw';
+      panel.style.maxWidth = '20vw';
+    }
+
+    // create tables in DOM order (A..Z) so they stack naturally
+    nodeIds.forEach((id) => {
+      const box = document.createElement('div');
+      box.className = 'panel-route-table';
+      box.id = 'panel-rt-' + id;
+      box.dataset.router = id;
+      box.style.position = 'relative';
+      
+      // Add color class to match the router
+      const colorClass = `router-color-${id}`;
+      box.classList.add(colorClass);
+      
+      box.innerHTML = `
+        <div class="rt-title"><span class="dot router-dot" style="width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px"></span>Router ${id}</div>
+        <table><thead><tr><th>To</th><th>Cost</th><th>Next</th></tr></thead><tbody></tbody></table>
+      `;
+      // populate initial rows (To/Cost/Next placeholders)
+      const tbody = box.querySelector('tbody');
+      nodeIds.forEach(dest => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${dest}</td><td>∞</td><td>-</td>`;
+        tbody.appendChild(tr);
+      });
+      panel.appendChild(box);
+    });
+  }
+
+  // Position route tables to align with nodes (called after topology updated and on resize)
+  function positionRoutingTables() {
+    // With flow layout the browser handles vertical stacking.
+    // Ensure panel exists and optionally reset scroll/visuals.
+    const panel = document.getElementById('route-tables-panel');
+    if (!panel) return;
+    // Optionally keep table order synced with node order (A..)
+    const nodeIds = (window._topologyState && window._topologyState.nodes) || [];
+    if (nodeIds.length) {
+      nodeIds.forEach((id, idx) => {
+        const box = document.getElementById('panel-rt-' + id);
+        if (box) panel.appendChild(box); // re-append preserves order
+      });
+    }
+    // nothing else required; tables will flow one-after-another vertically
+  }
+
+  // Create bottom sim controls
+  function createSimControls() {
+    if (document.getElementById('sim-controls')) return;
+    const c = document.createElement('div');
+    c.id = 'sim-controls';
+    c.innerHTML = `
+      <button id="prevBtn" type="button" title="Previous Step">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15,18 9,12 15,6"></polyline>
+        </svg>
+        Prev
+      </button>
+      <button id="nextBtn" type="button" title="Next Step">
+        Next
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9,18 15,12 9,6"></polyline>
+        </svg>
+      </button>
+      <button id="resetBtn" type="button" title="Reset Simulation">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+          <path d="M21 3v5h-5"></path>
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+          <path d="M3 21v-5h5"></path>
+        </svg>
+        Reset
+      </button>
+      <label for="speedRange">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polygon points="10,8 16,12 10,16 10,8"></polygon>
+        </svg>
+        Speed
+      </label>
+      <input id="speedRange" type="range" min="0.2" max="3" step="0.1" value="1" />
+    `;
+    document.body.appendChild(c);
+
+    // Simulation control handlers
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      if (window._simulationState.currentStep > 0) {
+        window._simulationState.currentStep--;
+        executeSimulationStep();
+        updateControlButtons();
+      }
+    });
+    
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      if (window._simulationState.currentStep < window._simulationState.totalSteps) {
+        window._simulationState.currentStep++;
+        executeSimulationStep();
+        updateControlButtons();
+      }
+    });
+    
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      resetSimulation();
+    });
+    
+    document.getElementById('speedRange').addEventListener('input', (ev) => {
+      window._simulationState.speed = parseFloat(ev.target.value);
+    });
+  }
+
+  // Enter simulation mode: hide form, enlarge preview, create tables & controls and position tables
+  function enterSimMode(nodeIds) {
+    const layout = document.querySelector('.config-layout');
+    if (layout) layout.classList.add('sim-mode');
+
+    // Get current algorithm and update titles
+    const pageAlgo = (document.body && document.body.dataset && document.body.dataset.algo) ? document.body.dataset.algo.toLowerCase() : 'link_state';
+    const algorithmName = pageAlgo.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase());
+
+    // update page title + header
+    if (!document.body.dataset._origTitle) document.body.dataset._origTitle = document.title;
+    document.title = `${algorithmName} Simulation`;
+    const headerEl = document.querySelector('.config-title');
+    const subtitleEl = document.querySelector('.config-subtitle');
+    if (headerEl && headerEl.dataset.origText == null) headerEl.dataset.origText = headerEl.textContent;
+    if (subtitleEl && subtitleEl.dataset.origText == null) subtitleEl.dataset.origText = subtitleEl.textContent;
+    if (headerEl) headerEl.textContent = `${algorithmName} Simulation`;
+    if (subtitleEl) subtitleEl.textContent = '';
+
+    // Update algorithm title in workspace
+    const algorithmTitle = document.getElementById('algorithmTitle');
+    if (algorithmTitle) {
+      algorithmTitle.textContent = algorithmName;
+    }
+
+    // create tables & controls
+    createRoutingTables(nodeIds);
+    createSimControls();
+    // position tables after a short delay for layout transitions
+    setTimeout(positionRoutingTables, 360);
+    if (!window._simResizeHandler) window._simResizeHandler = positionRoutingTables;
+    window.addEventListener('resize', window._simResizeHandler);
+
+    // show bottom-left toggle button
+    const showBtn = document.getElementById('showFormBtn');
+    if (showBtn) {
+      showBtn.style.display = '';
+      showBtn.setAttribute('aria-hidden', 'false');
+      showBtn.addEventListener('click', exitSimMode);
+    }
+  }
+ 
+  // Exit simulation mode: restore form and remove simulation overlays/controls
+  function exitSimMode() {
+    const layout = document.querySelector('.config-layout');
+    if (layout) layout.classList.remove('sim-mode');
+
+    // restore page title
+    if (document.body.dataset._origTitle) {
+      document.title = document.body.dataset._origTitle;
+      delete document.body.dataset._origTitle;
+    }
+    // restore header/subtitle
+    const headerEl = document.querySelector('.config-title');
+    const subtitleEl = document.querySelector('.config-subtitle');
+    if (headerEl && headerEl.dataset.origText != null) {
+      headerEl.textContent = headerEl.dataset.origText;
+      delete headerEl.dataset.origText;
+    }
+    if (subtitleEl && subtitleEl.dataset.origText != null) {
+      subtitleEl.textContent = subtitleEl.dataset.origText;
+      delete subtitleEl.dataset.origText;
+    }
+
+    // remove route tables and sim controls
+    const panel = document.getElementById('route-tables-panel');
+    if (panel) panel.remove();
+    const controls = document.getElementById('sim-controls');
+    if (controls) controls.remove();
+
+    // remove resize handler
+    if (window._simResizeHandler) {
+      window.removeEventListener('resize', window._simResizeHandler);
+      delete window._simResizeHandler;
+    }
+
+    // hide the bottom-left button and detach its listener
+    const showBtn = document.getElementById('showFormBtn');
+    if (showBtn) {
+      showBtn.removeEventListener('click', exitSimMode);
+      showBtn.style.display = 'none';
+      showBtn.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  // UpdateTopology: store positions in window._topologyState so other functions can use them
+  // Patch the existing updateTopology function to record positions
+  const originalUpdateTopology = window.updateTopology || null;
+  if (typeof updateTopology === 'function') {
+    const userUpdateTopology = updateTopology;
+    updateTopology = function() {
+      // call original which will rebuild DOM
+      userUpdateTopology();
+      // attempt to extract positions from DOM: many nodes created have style.left/top in px
+      const container = document.getElementById('topology-animation');
+      const nodes = container ? Array.from(container.querySelectorAll('.router-node')) : [];
+      const positions = nodes.map(n => {
+        const left = parseFloat(n.style.left) || 0;
+        const top = parseFloat(n.style.top) || 0;
+        // position center offset (we used -30 earlier)
+        return { x: left + 30, y: top + 30, delay: parseInt(n.style.animationDelay) || 0 };
+      });
+      const nodeIds = positions.map((_, i) => String.fromCharCode(65 + i));
+      window._topologyState.nodes = nodeIds;
+      window._topologyState.positions = positions;
+      // connections are already used inside updateTopology; we won't extract them here
+      if (document.querySelector('.config-layout.sim-mode')) {
+        // if in sim-mode, ensure tables exist & get positioned
+        createRoutingTables(nodeIds);
+        positionRoutingTables();
+      }
+      return;
+    };
+  }
+
+  // Wire enterSimMode into the form submit handler: call before storing payload / navigating
+  // Find the form and wrap its submit listener if present
+  const topForm = document.getElementById('networkForm');
+  if (topForm) {
+    topForm.addEventListener('submit', function(ev) {
+      // If we are already leaving the page via navigation, still show sim-mode for instant feedback
+      try {
+        const numRouters = parseInt(document.getElementById('num_routers').value) || 4;
+        const nodeIds = Array.from({length: numRouters}, (_, i) => String.fromCharCode(65 + i));
+        enterSimMode(nodeIds);
+      } catch (e) {
+        // ignore
+      }
+      // allow existing submit logic to proceed (existing code will preventDefault and handle redirect)
+    }, { once: true }); // run once to avoid duplicate UI injection
+  }
+
+  // Initialize simulation with algorithm data
+  function initializeSimulation(algorithm, topology, message, source, dest) {
+    window._simulationState.algorithm = algorithm;
+    window._simulationState.topology = topology;
+    window._simulationState.message = message;
+    window._simulationState.source = source;
+    window._simulationState.dest = dest;
+    window._simulationState.currentStep = 0;
+    window._simulationState.currentMessagePosition = 0;
+    
+    // Generate simulation steps based on algorithm
+    if (algorithm.includes('distance') || algorithm.includes('vector')) {
+      generateDistanceVectorSteps();
+    } else {
+      generateLinkStateSteps();
+    }
+    
+    // Initialize routing tables
+    initializeRoutingTables();
+    
+    // Start with step 0
+    executeSimulationStep();
+    updateControlButtons();
+  }
+  
+  // Generate steps for Distance Vector algorithm
+  function generateDistanceVectorSteps() {
+    const { topology, source } = window._simulationState;
+    const steps = [];
+    
+    // Step 0: Initial state
+    steps.push({
+      type: 'initial',
+      description: 'Initial routing tables - only direct neighbors known',
+      tables: getInitialTables(topology.nodes, topology.links)
+    });
+    
+    // Create individual router steps - one per router
+    const routerConnections = {};
+    topology.links.forEach(link => {
+      if (!routerConnections[link.u]) routerConnections[link.u] = [];
+      if (!routerConnections[link.v]) routerConnections[link.v] = [];
+      
+      routerConnections[link.u].push({ to: link.v, cost: link.w });
+      routerConnections[link.v].push({ to: link.u, cost: link.w });
+    });
+    
+    // Create steps for each router sending updates
+    Object.keys(routerConnections).forEach((routerId, index) => {
+      steps.push({
+        type: 'router_update',
+        routerId: routerId,
+        description: `Router ${routerId} sends routing table updates to neighbors`,
+        neighbors: routerConnections[routerId]
+      });
+    });
+    
+    // Final step: Message transmission
+    const finalPath = findMessagePath(topology.nodes, topology.links, source, window._simulationState.dest);
+    steps.push({
+      type: 'message',
+      description: 'Message transmission path',
+      path: finalPath
+    });
+    
+    window._simulationState.steps = steps;
+    window._simulationState.totalSteps = steps.length - 1;
+  }
+  
+  // Generate steps for Link State algorithm
+  function generateLinkStateSteps() {
+    const { topology, source } = window._simulationState;
+    const steps = [];
+    
+    // Step 0: Initial state
+    steps.push({
+      type: 'initial',
+      description: 'Initial routing tables - only direct neighbors known',
+      tables: getInitialTables(topology.nodes, topology.links)
+    });
+    
+    // Link State: Each router floods its link state to ALL routers
+    topology.nodes.forEach((routerId, index) => {
+      // Get all other routers (flooding targets)
+      const allOtherRouters = topology.nodes.filter(node => node !== routerId);
+      
+      steps.push({
+        type: 'link_state_flood',
+        routerId: routerId,
+        description: `Router ${routerId} floods link state information to all routers`,
+        targets: allOtherRouters,
+        linkState: getLinkStateForRouter(routerId, topology.links)
+      });
+    });
+    
+    // Step after flooding: All routers run Dijkstra's algorithm
+    steps.push({
+      type: 'dijkstra_computation',
+      description: 'All routers compute shortest paths using Dijkstra\'s algorithm',
+      source: source
+    });
+    
+    // Final step: Message transmission
+    const finalPath = findMessagePath(topology.nodes, topology.links, source, window._simulationState.dest);
+    steps.push({
+      type: 'message',
+      description: 'Message transmission path',
+      path: finalPath
+    });
+    
+    window._simulationState.steps = steps;
+    window._simulationState.totalSteps = steps.length - 1;
+  }
+  
+  // Get link state information for a specific router
+  function getLinkStateForRouter(routerId, links) {
+    const linkState = [];
+    links.forEach(link => {
+      if (link.u === routerId) {
+        linkState.push({ neighbor: link.v, cost: link.w });
+      } else if (link.v === routerId) {
+        linkState.push({ neighbor: link.u, cost: link.w });
+      }
+    });
+    return linkState;
+  }
+  
+  // Execute current simulation step
+  function executeSimulationStep() {
+    const { currentStep, steps } = window._simulationState;
+    const step = steps[currentStep];
+    
+    if (!step) return;
+    
+    // Clear previous highlights
+    clearHighlights();
+    
+    switch (step.type) {
+      case 'initial':
+        displayInitialTables(step.tables);
+        break;
+      case 'iteration':
+        displayIterationUpdate(step);
+        break;
+      case 'dijkstra':
+        displayDijkstraStep(step);
+        break;
+      case 'router_update':
+        displayRouterUpdate(step);
+        break;
+      case 'link_state_flood':
+        displayLinkStateFlood(step);
+        break;
+      case 'dijkstra_computation':
+        displayDijkstraComputation(step);
+        break;
+      case 'message':
+        startMessageTransmission(step.path);
+        break;
+    }
+  }
+  
+  // Display single router update step
+  function displayRouterUpdate(step) {
+    const { routerId, neighbors } = step;
+    
+    // Highlight the sending router
+    highlightRouter(routerId);
+    
+    // Show "Sending updates" message
+    showSendingMessage(routerId);
+    
+    // Send updates to each neighbor with proper timing
+    const { speed } = window._simulationState;
+    const neighborDelay = 600 / speed;
+    
+    neighbors.forEach((neighbor, index) => {
+      setTimeout(() => {
+        createRoutingTableUpdateAnimation(routerId, neighbor.to, neighbor.cost);
+      }, (index + 1) * neighborDelay);
+    });
+  }
+  
+  // Display Link State flooding step
+  function displayLinkStateFlood(step) {
+    const { routerId, targets, linkState } = step;
+    
+    // Highlight the flooding router
+    highlightRouter(routerId);
+    
+    // Show "Flooding link state" message
+    showFloodingMessage(routerId, linkState);
+    
+    // Send link state to ALL other routers (flooding)
+    const { speed } = window._simulationState;
+    const floodDelay = 400 / speed;
+    
+    targets.forEach((target, index) => {
+      setTimeout(() => {
+        createLinkStateFloodAnimation(routerId, target, linkState);
+      }, (index + 1) * floodDelay);
+    });
+  }
+  
+  // Display Dijkstra computation step
+  function displayDijkstraComputation(step) {
+    const { source } = step;
+    
+    // Show computation message
+    showComputationMessage();
+    
+    // Update all routing tables with computed shortest paths
+    setTimeout(() => {
+      updateAllRoutingTablesWithDijkstra(source);
+    }, 1000 / window._simulationState.speed);
+  }
+  
+  // Update control button states
+  function updateControlButtons() {
+    const { currentStep, totalSteps } = window._simulationState;
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    
+    if (prevBtn) {
+      prevBtn.disabled = currentStep === 0;
+    }
+    if (nextBtn) {
+      nextBtn.disabled = currentStep >= totalSteps;
+    }
+  }
+  
+  // Reset simulation to beginning
+  function resetSimulation() {
+    window._simulationState.currentStep = 0;
+    window._simulationState.currentMessagePosition = 0;
+    clearHighlights();
+    executeSimulationStep();
+    updateControlButtons();
+  }
+
+  // expose simUI object (unchanged)
+  window.simUI = {
+    enterSimMode,
+    exitSimMode,
+    createRoutingTables,
+    positionRoutingTables,
+    createSimControls,
+    initializeSimulation,
+    updateRoutingTable: function(routerId, rows) {
+      const tbody = document.querySelector(`#panel-rt-${routerId} tbody`);
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.to}</td><td>${r.cost == null ? '∞' : r.cost}</td><td>${r.next || ''}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+  };
+
+  // Helper functions for simulation
+  function getInitialTables(nodes, links) {
+    const tables = {};
+    nodes.forEach(node => {
+      tables[node] = {};
+      nodes.forEach(dest => {
+        if (dest === node) {
+          tables[node][dest] = { cost: 0, next: dest };
+        } else {
+          // Check if direct neighbor
+          const directLink = links.find(link => 
+            (link.u === node && link.v === dest) || (link.v === node && link.u === dest)
+          );
+          if (directLink) {
+            tables[node][dest] = { cost: directLink.w, next: dest };
+          } else {
+            tables[node][dest] = { cost: Infinity, next: null };
+          }
+        }
+      });
+    });
+    return tables;
+  }
+  
+  function initializeRoutingTables() {
+    const { topology } = window._simulationState;
+    const initialTables = getInitialTables(topology.nodes, topology.links);
+    
+    topology.nodes.forEach(node => {
+      const rows = topology.nodes.map(dest => ({
+        to: dest,
+        cost: initialTables[node][dest].cost === Infinity ? '∞' : initialTables[node][dest].cost,
+        next: initialTables[node][dest].next || '-'
+      }));
+      window.simUI.updateRoutingTable(node, rows);
+    });
+  }
+  
+  function displayInitialTables(tables) {
+    Object.keys(tables).forEach(routerId => {
+      const rows = Object.keys(tables[routerId]).map(dest => ({
+        to: dest,
+        cost: tables[routerId][dest].cost === Infinity ? '∞' : tables[routerId][dest].cost,
+        next: tables[routerId][dest].next || '-'
+      }));
+      window.simUI.updateRoutingTable(routerId, rows);
+    });
+  }
+  
+  function displayIterationUpdate(step) {
+    // Update tables
+    Object.keys(step.tables).forEach(routerId => {
+      const rows = Object.keys(step.tables[routerId]).map(dest => ({
+        to: dest,
+        cost: step.tables[routerId][dest].cost === Infinity ? '∞' : step.tables[routerId][dest].cost,
+        next: step.tables[routerId][dest].next || '-'
+      }));
+      window.simUI.updateRoutingTable(routerId, rows);
+    });
+    
+    // Highlight changes
+    step.updates.forEach(update => {
+      highlightTableUpdate(update.node, update.destination, update.new_cost);
+    });
+  }
+  
+  function displayDijkstraStep(step) {
+    // Update tables
+    Object.keys(step.tables).forEach(routerId => {
+      const rows = Object.keys(step.tables[routerId]).map(dest => ({
+        to: dest,
+        cost: step.tables[routerId][dest].cost === Infinity ? '∞' : step.tables[routerId][dest].cost,
+        next: step.tables[routerId][dest].next || '-'
+      }));
+      window.simUI.updateRoutingTable(routerId, rows);
+    });
+    
+    // Highlight the node being processed
+    highlightRouter(step.node);
+  }
+  
+  function highlightTableUpdate(routerId, destination, newCost) {
+    const table = document.querySelector(`#panel-rt-${routerId}`);
+    if (!table) return;
+    
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+      const destCell = row.querySelector('td:first-child');
+      if (destCell && destCell.textContent === destination) {
+        row.classList.add('highlight-update');
+        
+        // Add update notification
+        showUpdateNotification(routerId, destination, newCost);
+        
+        setTimeout(() => row.classList.remove('highlight-update'), 3000);
+      }
+    });
+  }
+  
+  // Show update notification
+  function showUpdateNotification(routerId, destination, newCost) {
+    const container = document.getElementById('topology-animation');
+    if (!container) return;
+    
+    const notificationEl = document.createElement('div');
+    notificationEl.className = 'update-notification';
+    notificationEl.innerHTML = `
+      <div class="notification-bubble">
+        <div class="notification-icon">✨</div>
+        <div class="notification-text">Table Updated!</div>
+        <div class="notification-details">Router ${routerId} → ${destination}: ${newCost}</div>
+      </div>
+    `;
+    
+    // Position notification near the router
+    const routerNode = container.querySelector(`.router-node[data-router="${routerId}"]`);
+    if (routerNode) {
+      const routerRect = routerNode.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      
+      const x = routerRect.left - containerRect.left + routerRect.width / 2;
+      const y = routerRect.top - containerRect.top - 50;
+      
+      notificationEl.style.left = `${x}px`;
+      notificationEl.style.top = `${y}px`;
+      notificationEl.style.transform = `translate(-50%, -100%)`;
+      
+      container.appendChild(notificationEl);
+      
+      // Remove after animation
+      setTimeout(() => {
+        if (notificationEl.parentNode) {
+          notificationEl.parentNode.removeChild(notificationEl);
+        }
+      }, 2500 / window._simulationState.speed);
+    }
+  }
+  
+  function highlightRouter(routerId) {
+    const router = document.querySelector(`.router-node[data-router="${routerId}"]`);
+    if (router) {
+      router.classList.add('highlight-router');
+      setTimeout(() => router.classList.remove('highlight-router'), 2000);
+    }
+  }
+  
+  function clearHighlights() {
+    document.querySelectorAll('.highlight-update, .highlight-router').forEach(el => {
+      el.classList.remove('highlight-update', 'highlight-router');
+    });
+  }
+  
+  function startMessageTransmission(path) {
+    if (!path || path.length < 2) return;
+    
+    window._simulationState.messagePath = path;
+    window._simulationState.currentMessagePosition = 0;
+    
+    // Animate message transmission
+    animateMessageHop(0);
+  }
+  
+  function animateMessageHop(hopIndex) {
+    const { messagePath, speed } = window._simulationState;
+    if (hopIndex >= messagePath.length - 1) return;
+    
+    const fromRouter = messagePath[hopIndex];
+    const toRouter = messagePath[hopIndex + 1];
+    
+    // Highlight source and destination
+    highlightRouter(fromRouter);
+    setTimeout(() => highlightRouter(toRouter), 500 / speed);
+    
+    // Create message animation
+    createMessageAnimation(fromRouter, toRouter, hopIndex);
+    
+    // Continue to next hop
+    setTimeout(() => {
+      animateMessageHop(hopIndex + 1);
+    }, 2000 / speed);
+  }
+  
+  function createMessageAnimation(fromRouter, toRouter, hopIndex) {
+    const container = document.getElementById('topology-animation');
+    if (!container) return;
+    
+    const messageEl = document.createElement('div');
+    messageEl.className = 'message-animation';
+    messageEl.innerHTML = `
+      <div class="message-bubble">
+        <span class="message-text">${window._simulationState.message}</span>
+      </div>
+    `;
+    
+    // Position message
+    const fromNode = container.querySelector(`.router-node[data-router="${fromRouter}"]`);
+    const toNode = container.querySelector(`.router-node[data-router="${toRouter}"]`);
+    
+    if (fromNode && toNode) {
+      const fromRect = fromNode.getBoundingClientRect();
+      const toRect = toNode.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      
+      const startX = fromRect.left - containerRect.left + fromRect.width / 2;
+      const startY = fromRect.top - containerRect.top + fromRect.height / 2;
+      const endX = toRect.left - containerRect.left + toRect.width / 2;
+      const endY = toRect.top - containerRect.top + toRect.height / 2;
+      
+      messageEl.style.left = `${startX}px`;
+      messageEl.style.top = `${startY}px`;
+      messageEl.style.transform = `translate(-50%, -50%)`;
+      
+      container.appendChild(messageEl);
+      
+      // Animate movement
+      setTimeout(() => {
+        messageEl.style.transition = `all ${1.5 / window._simulationState.speed}s ease-in-out`;
+        messageEl.style.left = `${endX}px`;
+        messageEl.style.top = `${endY}px`;
+      }, 100);
+      
+      // Update routing table when message reaches destination
+      setTimeout(() => {
+        updateRoutingTableAfterMessage(toRouter, fromRouter, getLinkCost(fromRouter, toRouter));
+      }, (1.5 * 1000) + 200); // Update when message reaches destination
+      
+      // Remove after animation
+      setTimeout(() => {
+        if (messageEl.parentNode) {
+          messageEl.parentNode.removeChild(messageEl);
+        }
+      }, 2000 / window._simulationState.speed);
+    }
+  }
+  
+  // This function is no longer needed - router updates are now controlled by Next button
+  
+  // Create animation for routing table update transmission
+  function createRoutingTableUpdateAnimation(fromRouter, toRouter, cost) {
+    const container = document.getElementById('topology-animation');
+    if (!container) return;
+    
+    const { speed, topology } = window._simulationState;
+    const animationDuration = 1.5 / speed;
+    const totalDuration = 2.0 / speed;
+    
+    const updateEl = document.createElement('div');
+    updateEl.className = 'routing-update-animation';
+    updateEl.innerHTML = `
+      <div class="update-bubble">
+        <div class="update-icon">📊</div>
+        <div class="update-text">Routing Table Update</div>
+        <div class="update-details">Cost: ${cost}</div>
+      </div>
+    `;
+    
+    // Position update
+    const fromNode = container.querySelector(`.router-node[data-router="${fromRouter}"]`);
+    const toNode = container.querySelector(`.router-node[data-router="${toRouter}"]`);
+    
+    if (fromNode && toNode) {
+      const fromRect = fromNode.getBoundingClientRect();
+      const toRect = toNode.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      
+      const startX = fromRect.left - containerRect.left + fromRect.width / 2;
+      const startY = fromRect.top - containerRect.top + fromRect.height / 2;
+      const endX = toRect.left - containerRect.left + toRect.width / 2;
+      const endY = toRect.top - containerRect.top + toRect.height / 2;
+      
+      updateEl.style.left = `${startX}px`;
+      updateEl.style.top = `${startY}px`;
+      updateEl.style.transform = `translate(-50%, -50%)`;
+      
+      container.appendChild(updateEl);
+      
+      // Animate movement
+      setTimeout(() => {
+        updateEl.style.transition = `all ${animationDuration}s ease-in-out`;
+        updateEl.style.left = `${endX}px`;
+        updateEl.style.top = `${endY}px`;
+      }, 100);
+      
+      // Update routing table when message reaches destination
+      setTimeout(() => {
+        updateRoutingTableAfterMessage(toRouter, fromRouter, cost);
+      }, (animationDuration * 1000) + 200); // Update when message reaches destination
+      
+      // Remove after animation
+      setTimeout(() => {
+        if (updateEl.parentNode) {
+          updateEl.parentNode.removeChild(updateEl);
+        }
+      }, totalDuration * 1000);
+    }
+  }
+  
+  // Update routing table after receiving a message
+  function updateRoutingTableAfterMessage(receivingRouter, sendingRouter, linkCost) {
+    const { topology } = window._simulationState;
+    
+    // Get current routing table for the receiving router
+    const currentTable = getCurrentRoutingTable(receivingRouter);
+    const sendingTable = getCurrentRoutingTable(sendingRouter);
+    
+    let hasUpdates = false;
+    const updates = [];
+    
+    // Update routing table based on received information
+    topology.nodes.forEach(destination => {
+      if (destination !== receivingRouter && sendingTable[destination].cost !== Infinity) {
+        const newCost = linkCost + sendingTable[destination].cost;
+        const currentCost = currentTable[destination].cost;
+        
+        if (newCost < currentCost) {
+          currentTable[destination].cost = newCost;
+          currentTable[destination].next = sendingRouter;
+          hasUpdates = true;
+          updates.push({
+            destination: destination,
+            newCost: newCost,
+            via: sendingRouter
+          });
+        }
+      }
+    });
+    
+    // Update the display if there were changes
+    if (hasUpdates) {
+      updateRoutingTableDisplay(receivingRouter, currentTable);
+      
+      // Highlight the updated entries
+      updates.forEach(update => {
+        highlightTableUpdate(receivingRouter, update.destination, update.newCost);
+      });
+    }
+  }
+  
+  // Get current routing table for a router
+  function getCurrentRoutingTable(routerId) {
+    const { topology } = window._simulationState;
+    const table = {};
+    
+    topology.nodes.forEach(dest => {
+      const tbody = document.querySelector(`#panel-rt-${routerId} tbody`);
+      if (tbody) {
+        const rows = tbody.querySelectorAll('tr');
+        const destRow = Array.from(rows).find(row => {
+          const destCell = row.querySelector('td:first-child');
+          return destCell && destCell.textContent === dest;
+        });
+        
+        if (destRow) {
+          const costCell = destRow.querySelector('td:nth-child(2)');
+          const nextCell = destRow.querySelector('td:nth-child(3)');
+          
+          const cost = costCell ? (costCell.textContent === '∞' ? Infinity : parseInt(costCell.textContent)) : Infinity;
+          const next = nextCell ? (nextCell.textContent === '-' ? null : nextCell.textContent) : null;
+          
+          table[dest] = { cost: cost, next: next };
+        }
+      }
+    });
+    
+    return table;
+  }
+  
+  // Update routing table display
+  function updateRoutingTableDisplay(routerId, table) {
+    const { topology } = window._simulationState;
+    
+    const rows = topology.nodes.map(dest => ({
+      to: dest,
+      cost: table[dest].cost === Infinity ? '∞' : table[dest].cost,
+      next: table[dest].next || '-'
+    }));
+    
+    window.simUI.updateRoutingTable(routerId, rows);
+  }
+  
+  // Enhanced message transmission with detailed path animation
+  function startMessageTransmission(path) {
+    if (!path || path.length < 2) return;
+    
+    window._simulationState.messagePath = path;
+    window._simulationState.currentMessagePosition = 0;
+    
+    // Show path highlighting first
+    highlightMessagePath(path);
+    
+    // Then animate message transmission
+    setTimeout(() => {
+      animateMessageTransmission(path);
+    }, 1000 / window._simulationState.speed);
+  }
+  
+  // Highlight the message transmission path
+  function highlightMessagePath(path) {
+    const container = document.getElementById('topology-animation');
+    if (!container) return;
+    
+    // Highlight each router in the path
+    path.forEach((routerId, index) => {
+      setTimeout(() => {
+        const router = container.querySelector(`.router-node[data-router="${routerId}"]`);
+        if (router) {
+          router.classList.add('path-highlight');
+          setTimeout(() => {
+            router.classList.remove('path-highlight');
+          }, 2000 / window._simulationState.speed);
+        }
+      }, index * 400 / window._simulationState.speed);
+    });
+    
+    // Highlight connections between path routers
+    for (let i = 0; i < path.length - 1; i++) {
+      setTimeout(() => {
+        highlightConnection(path[i], path[i + 1]);
+      }, i * 400 / window._simulationState.speed);
+    }
+  }
+  
+  // Highlight connection between two routers
+  function highlightConnection(fromRouter, toRouter) {
+    const container = document.getElementById('topology-animation');
+    if (!container) return;
+    
+    const connections = container.querySelectorAll('.connection-line');
+    connections.forEach(conn => {
+      // Check if this connection is between the two routers
+      const fromNode = container.querySelector(`.router-node[data-router="${fromRouter}"]`);
+      const toNode = container.querySelector(`.router-node[data-router="${toRouter}"]`);
+      
+      if (fromNode && toNode) {
+        const fromRect = fromNode.getBoundingClientRect();
+        const toRect = toNode.getBoundingClientRect();
+        const connRect = conn.getBoundingClientRect();
+        
+        // Simple check if connection line is between the routers
+        const isBetween = (
+          (connRect.left >= Math.min(fromRect.left, toRect.left) && 
+           connRect.left <= Math.max(fromRect.left, toRect.left)) ||
+          (connRect.right >= Math.min(fromRect.left, toRect.left) && 
+           connRect.right <= Math.max(fromRect.left, toRect.left))
+        );
+        
+        if (isBetween) {
+          conn.classList.add('path-connection');
+          setTimeout(() => {
+            conn.classList.remove('path-connection');
+          }, 2000 / window._simulationState.speed);
+        }
+      }
+    });
+  }
+  
+  // Enhanced message transmission animation
+  function animateMessageTransmission(path) {
+    if (path.length < 2) return;
+    
+    // Animate each hop
+    path.forEach((routerId, index) => {
+      if (index < path.length - 1) {
+        setTimeout(() => {
+          const fromRouter = path[index];
+          const toRouter = path[index + 1];
+          
+          // Highlight routers
+          highlightRouter(fromRouter);
+          setTimeout(() => highlightRouter(toRouter), 300 / window._simulationState.speed);
+          
+          // Create message animation
+          createMessageAnimation(fromRouter, toRouter, index);
+          
+          // Show hop information
+          showHopInfo(fromRouter, toRouter, index + 1, path.length - 1);
+          
+        }, index * 2000 / window._simulationState.speed);
+      }
+    });
+  }
+  
+  // Show hop information
+  function showHopInfo(fromRouter, toRouter, hopNumber, totalHops) {
+    const container = document.getElementById('topology-animation');
+    if (!container) return;
+    
+    const hopEl = document.createElement('div');
+    hopEl.className = 'hop-info';
+    hopEl.innerHTML = `
+      <div class="hop-bubble">
+        <div class="hop-text">Hop ${hopNumber}/${totalHops}</div>
+        <div class="hop-route">${fromRouter} → ${toRouter}</div>
+      </div>
+    `;
+    
+    // Position hop info
+    const fromNode = container.querySelector(`.router-node[data-router="${fromRouter}"]`);
+    if (fromNode) {
+      const fromRect = fromNode.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      
+      const x = fromRect.left - containerRect.left + fromRect.width / 2;
+      const y = fromRect.top - containerRect.top - 20;
+      
+      hopEl.style.left = `${x}px`;
+      hopEl.style.top = `${y}px`;
+      hopEl.style.transform = `translate(-50%, -100%)`;
+      
+      container.appendChild(hopEl);
+      
+      // Remove after animation
+      setTimeout(() => {
+        if (hopEl.parentNode) {
+          hopEl.parentNode.removeChild(hopEl);
+        }
+      }, 1500 / window._simulationState.speed);
+    }
+  }
+  
+  // Show "sending updates" message for a router
+  function showSendingMessage(routerId) {
+    const container = document.getElementById('topology-animation');
+    if (!container) return;
+    
+    const { speed } = window._simulationState;
+    const messageDuration = 2500 / speed; // Longer duration for sending message
+    
+    const sendingEl = document.createElement('div');
+    sendingEl.className = 'sending-message';
+    sendingEl.innerHTML = `
+      <div class="sending-bubble">
+        <div class="sending-icon">📤</div>
+        <div class="sending-text">Router ${routerId}</div>
+        <div class="sending-details">Sending Updates</div>
+      </div>
+    `;
+    
+    // Position sending message
+    const routerNode = container.querySelector(`.router-node[data-router="${routerId}"]`);
+    if (routerNode) {
+      const routerRect = routerNode.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      
+      const x = routerRect.left - containerRect.left + routerRect.width / 2;
+      const y = routerRect.top - containerRect.top - 30;
+      
+      sendingEl.style.left = `${x}px`;
+      sendingEl.style.top = `${y}px`;
+      sendingEl.style.transform = `translate(-50%, -100%)`;
+      
+      container.appendChild(sendingEl);
+      
+      // Remove after animation
+      setTimeout(() => {
+        if (sendingEl.parentNode) {
+          sendingEl.parentNode.removeChild(sendingEl);
+        }
+      }, messageDuration);
+    }
+  }
+  
+  // Show "flooding link state" message for a router
+  function showFloodingMessage(routerId, linkState) {
+    const container = document.getElementById('topology-animation');
+    if (!container) return;
+    
+    const { speed } = window._simulationState;
+    const messageDuration = 3000 / speed; // Longer duration for flooding
+    
+    const floodingEl = document.createElement('div');
+    floodingEl.className = 'sending-message';
+    floodingEl.innerHTML = `
+      <div class="sending-bubble" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+        <div class="sending-icon">🌊</div>
+        <div class="sending-text">Router ${routerId}</div>
+        <div class="sending-details">Flooding Link State</div>
+        <div class="sending-details" style="font-size: 9px; margin-top: 2px;">
+          Links: ${linkState.map(l => `${l.neighbor}(${l.cost})`).join(', ')}
+        </div>
+      </div>
+    `;
+    
+    // Position flooding message
+    const routerNode = container.querySelector(`.router-node[data-router="${routerId}"]`);
+    if (routerNode) {
+      const routerRect = routerNode.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      
+      const x = routerRect.left - containerRect.left + routerRect.width / 2;
+      const y = routerRect.top - containerRect.top - 40;
+      
+      floodingEl.style.left = `${x}px`;
+      floodingEl.style.top = `${y}px`;
+      floodingEl.style.transform = `translate(-50%, -100%)`;
+      
+      container.appendChild(floodingEl);
+      
+      // Remove after animation
+      setTimeout(() => {
+        if (floodingEl.parentNode) {
+          floodingEl.parentNode.removeChild(floodingEl);
+        }
+      }, messageDuration);
+    }
+  }
+  
+  // Show Dijkstra computation message
+  function showComputationMessage() {
+    const container = document.getElementById('topology-animation');
+    if (!container) return;
+    
+    const { speed } = window._simulationState;
+    const messageDuration = 4000 / speed;
+    
+    const computationEl = document.createElement('div');
+    computationEl.className = 'sending-message';
+    computationEl.style.left = '50%';
+    computationEl.style.top = '50%';
+    computationEl.style.transform = 'translate(-50%, -50%)';
+    computationEl.innerHTML = `
+      <div class="sending-bubble" style="background: linear-gradient(135deg, #06b6d4, #0891b2); min-width: 200px;">
+        <div class="sending-icon">🧮</div>
+        <div class="sending-text">Dijkstra's Algorithm</div>
+        <div class="sending-details">Computing shortest paths...</div>
+      </div>
+    `;
+    
+    container.appendChild(computationEl);
+    
+    // Remove after animation
+    setTimeout(() => {
+      if (computationEl.parentNode) {
+        computationEl.parentNode.removeChild(computationEl);
+      }
+    }, messageDuration);
+  }
+  
+  // Create Link State flooding animation
+  function createLinkStateFloodAnimation(fromRouter, toRouter, linkState) {
+    const container = document.getElementById('topology-animation');
+    if (!container) return;
+    
+    const { speed } = window._simulationState;
+    const animationDuration = 1.2 / speed;
+    const totalDuration = 1.8 / speed;
+    
+    const floodEl = document.createElement('div');
+    floodEl.className = 'routing-update-animation';
+    floodEl.innerHTML = `
+      <div class="update-bubble" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+        <div class="update-icon">🌊</div>
+        <div class="update-text">Link State Flood</div>
+        <div class="update-details">From ${fromRouter}</div>
+        <div class="update-details" style="font-size: 9px;">
+          ${linkState.map(l => `${l.neighbor}:${l.cost}`).join(', ')}
+        </div>
+      </div>
+    `;
+    
+    // Position flood animation
+    const fromNode = container.querySelector(`.router-node[data-router="${fromRouter}"]`);
+    const toNode = container.querySelector(`.router-node[data-router="${toRouter}"]`);
+    
+    if (fromNode && toNode) {
+      const fromRect = fromNode.getBoundingClientRect();
+      const toRect = toNode.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      
+      const startX = fromRect.left - containerRect.left + fromRect.width / 2;
+      const startY = fromRect.top - containerRect.top + fromRect.height / 2;
+      const endX = toRect.left - containerRect.left + toRect.width / 2;
+      const endY = toRect.top - containerRect.top + toRect.height / 2;
+      
+      floodEl.style.left = `${startX}px`;
+      floodEl.style.top = `${startY}px`;
+      floodEl.style.transform = `translate(-50%, -50%)`;
+      
+      container.appendChild(floodEl);
+      
+      // Animate movement
+      setTimeout(() => {
+        floodEl.style.transition = `all ${animationDuration}s ease-in-out`;
+        floodEl.style.left = `${endX}px`;
+        floodEl.style.top = `${endY}px`;
+      }, 100);
+      
+      // Remove after animation
+      setTimeout(() => {
+        if (floodEl.parentNode) {
+          floodEl.parentNode.removeChild(floodEl);
+        }
+      }, totalDuration * 1000);
+    }
+  }
+  
+  // Update all routing tables with Dijkstra's algorithm
+  function updateAllRoutingTablesWithDijkstra(source) {
+    const { topology } = window._simulationState;
+    
+    // Run Dijkstra's algorithm
+    const result = dijkstraJS(topology.nodes, topology.links, source);
+    
+    // Update all routing tables
+    topology.nodes.forEach(routerId => {
+      const rows = topology.nodes.map(dest => ({
+        to: dest,
+        cost: result.routing[dest].cost === null ? '∞' : result.routing[dest].cost,
+        next: result.routing[dest].next_hop || '-'
+      }));
+      
+      window.simUI.updateRoutingTable(routerId, rows);
+      
+      // Highlight the updated table
+      const table = document.querySelector(`#panel-rt-${routerId}`);
+      if (table) {
+        table.classList.add('highlight-update');
+        setTimeout(() => table.classList.remove('highlight-update'), 2000);
+      }
+    });
+  }
+  
+  function findMessagePath(nodes, links, source, dest) {
+    // Simple BFS to find path
+    const queue = [[source]];
+    const visited = new Set([source]);
+    
+    while (queue.length > 0) {
+      const path = queue.shift();
+      const current = path[path.length - 1];
+      
+      if (current === dest) return path;
+      
+      // Find neighbors
+      const neighbors = links
+        .filter(link => link.u === current || link.v === current)
+        .map(link => link.u === current ? link.v : link.u)
+        .filter(neighbor => !visited.has(neighbor));
+      
+      neighbors.forEach(neighbor => {
+        visited.add(neighbor);
+        queue.push([...path, neighbor]);
+      });
+    }
+    
+    return [source]; // Fallback
+  }
+  
+  function simulateDistanceVector(nodes, links, source) {
+    // More realistic DV simulation with actual algorithm steps
+    const iterations = [];
+    const maxIterations = Math.min(nodes.length - 1, 4);
+    
+    // Start with initial tables
+    let currentTables = getInitialTables(nodes, links);
+    
+    for (let i = 0; i < maxIterations; i++) {
+      const updates = [];
+      const newTables = JSON.parse(JSON.stringify(currentTables)); // Deep copy
+      
+      // Simulate distance vector updates
+      nodes.forEach(node => {
+        // Find neighbors
+        const neighbors = links
+          .filter(link => link.u === node || link.v === node)
+          .map(link => link.u === node ? link.v : link.u);
+        
+        // Update routing table based on neighbor information
+        neighbors.forEach(neighbor => {
+          const linkCost = links.find(link => 
+            (link.u === node && link.v === neighbor) || 
+            (link.v === node && link.u === neighbor)
+          )?.w || 1;
+          
+          nodes.forEach(dest => {
+            if (dest !== node && currentTables[neighbor][dest].cost !== Infinity) {
+              const newCost = linkCost + currentTables[neighbor][dest].cost;
+              if (newCost < newTables[node][dest].cost) {
+                newTables[node][dest].cost = newCost;
+                newTables[node][dest].next = neighbor;
+                updates.push({
+                  node: node,
+                  destination: dest,
+                  new_cost: newCost,
+                  via: neighbor
+                });
+              }
+            }
+          });
+        });
+      });
+      
+      iterations.push({
+        iteration: i + 1,
+        updates: updates,
+        tables: newTables
+      });
+      
+      currentTables = newTables;
+    }
+    
+    return iterations;
+  }
+  
+  function simulateDijkstra(nodes, links, source) {
+    // Simplified Dijkstra simulation
+    const steps = [];
+    
+    nodes.forEach((node, i) => {
+      if (node !== source) {
+        steps.push({
+          step: i,
+          node: node,
+          tables: getInitialTables(nodes, links) // Simplified
+        });
+      }
+    });
+    
+    return steps;
+  }
+
+  // ...existing code (rest of DOMContentLoaded) ...
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Choose Algorithm</title>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Added styles to match index.html background -->
+  <style>
+    .algorithm-selection-container { position: relative; overflow: hidden; }
+
+    /* ensure content sits above background */
+    .selection-content { position: relative; z-index: 2; }
+
+    /* background wrapper behind content */
+    .background-elements { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+
+    .floating-circle {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(40px);
+      opacity: 0.7;
+      transform: translateZ(0);
+      will-change: transform, opacity;
+    }
+
+    .floating-circle.circle-1 {
+      width: 360px; height: 360px;
+      background: radial-gradient(circle at 30% 30%, rgba(99,102,241,0.95), rgba(99,102,241,0.40));
+      top: -80px; left: -80px;
+    }
+
+    .floating-circle.circle-2 {
+      width: 260px; height: 260px;
+      background: radial-gradient(circle at 70% 30%, rgba(236,72,153,0.85), rgba(236,72,153,0.30));
+      top: 18%; right: -60px;
+    }
+
+    .floating-circle.circle-3 {
+      width: 420px; height: 420px;
+      background: radial-gradient(circle at 40% 60%, rgba(16,185,129,0.65), rgba(16,185,129,0.22));
+      bottom: -140px; left: 10%;
+    }
+
+    .floating-circle.circle-4 {
+      width: 200px; height: 200px;
+      background: radial-gradient(circle at 60% 40%, rgba(34,197,94,0.6), rgba(34,197,94,0.18));
+      bottom: 8%; right: 5%;
+    }
+
+    @keyframes float {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-18px); }
+      100% { transform: translateY(0); }
+    }
+
+    .floating-circle { animation: float 8s ease-in-out infinite; }
+
+    /* page background and transparency so circles show through */
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: linear-gradient(135deg, #071024 0%, #0b1220 60%, #0f172a 100%);
+      color: #e5e7eb;
+    }
+
+    /* force container/content to be transparent if style.css set a white bg */
+    .algorithm-selection-container,
+    .selection-content {
+      background: transparent !important;
+    }
+
+    /* keep background-elements behind everything */
+    .background-elements { z-index: 0; }
+
+    /* ensure main content remains above background */
+    .selection-content { z-index: 2; position: relative; }
+  </style>
+</head>
+<body>
+  <div class="algorithm-selection-container">
+    <div class="selection-content">
+      <h1 class="selection-title">Choose Your Algorithm</h1>
+      <p class="selection-subtitle">Select the routing algorithm you'd like to simulate</p>
+      
+      <div class="algorithm-buttons">
+        <a href="config.html?algo=distance_vector" class="algorithm-button distance-vector-btn">
+          <div class="button-content">
+            <div class="button-icon">
+              <div class="network-animation">
+                <div class="node-anim node-1"></div>
+                <div class="node-anim node-2"></div>
+                <div class="node-anim node-3"></div>
+                <div class="connection-anim conn-1"></div>
+                <div class="connection-anim conn-2"></div>
+              </div>
+            </div>
+            <div class="button-text">
+              <h2>Distance Vector Routing</h2>
+              <p>Bellman-Ford Algorithm</p>
+              <div class="button-features">
+                <span class="feature-tag">Distributed</span>
+                <span class="feature-tag">Adaptive</span>
+              </div>
+            </div>
+            <div class="button-arrow">→</div>
+          </div>
+          <div class="button-glow"></div>
+        </a>
+        
+        <a href="config.html?algo=link_state" class="algorithm-button link-state-btn">
+          <div class="button-content">
+            <div class="button-icon">
+              <div class="network-animation">
+                <div class="node-anim node-1"></div>
+                <div class="node-anim node-2"></div>
+                <div class="node-anim node-3"></div>
+                <div class="node-anim node-4"></div>
+                <div class="connection-anim conn-1"></div>
+                <div class="connection-anim conn-2"></div>
+                <div class="connection-anim conn-3"></div>
+              </div>
+            </div>
+            <div class="button-text">
+              <h2>Link State Routing</h2>
+              <p>Dijkstra's Algorithm</p>
+              <div class="button-features">
+                <span class="feature-tag">Optimal</span>
+                <span class="feature-tag">Fast</span>
+              </div>
+            </div>
+            <div class="button-arrow">→</div>
+          </div>
+          <div class="button-glow"></div>
+        </a>
+      </div>
+      
+      <div class="back-link">
+        <a href="index.html" class="back-button">
+          <span>← Back to Home</span>
+        </a>
+      </div>
+    </div>
+    
+    <div class="background-elements">
+      <div class="floating-circle circle-1"></div>
+      <div class="floating-circle circle-2"></div>
+      <div class="floating-circle circle-3"></div>
+      <div class="floating-circle circle-4"></div>
+    </div>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Animate buttons on load
+      const buttons = document.querySelectorAll('.algorithm-button');
+      buttons.forEach((button, index) => {
+        button.style.animationDelay = `${index * 0.3}s`;
+        button.classList.add('animate-in');
+      });
+      
+      // Add hover effects
+      buttons.forEach(button => {
+        button.addEventListener('mouseenter', function() {
+          this.style.transform = 'translateY(-8px) scale(1.02)';
+          this.querySelector('.button-glow').style.opacity = '1';
+        });
+        
+        button.addEventListener('mouseleave', function() {
+          this.style.transform = 'translateY(0) scale(1)';
+          this.querySelector('.button-glow').style.opacity = '0';
+        });
+      });
+    });
+  </script>
+</body>
+</html>
