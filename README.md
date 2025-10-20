@@ -1,7 +1,7 @@
 ## How to Run Locally
 
 1. Clone the repo:
-   git clone https://github.com/YOUR_USERNAME/Network-simulation.git
+   git clone https://github.com/prakashkankal/Network-simulation.git
    cd Network-simulation
 
 2. Install dependencies:
